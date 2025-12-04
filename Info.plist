@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>HEICFormat</string>
+	<key>CFBundleGetInfoString</key>
+	<string>0.1.2 © 2021-2025 jdp. All rights reserved.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2021-2025 jdp. All rights reserved.</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.2</string>
+	<key>CFBundleName</key>
+	<string>HEICFormat</string>
+	<key>CFBundlePackageType</key>
+	<string>8BIF</string>
+	<key>CFBundleSignature</key>
+	<string>8BIM</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.jdp.heic</string>
+	<key>CFBundleVersion</key>
+	<string>3</string>
+</dict>
+</plist>
+

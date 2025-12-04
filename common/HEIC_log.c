@@ -11,7 +11,7 @@
 #include <stdarg.h>
 
 static void log_format(const char* message, va_list args) {
-    FILE *fp = fopen("/tmp/heic.log", "wb");
+    FILE *fp = fopen("/tmp/heic.log", "a");
     if (fp) {
         vfprintf(fp, message, args);
         fflush(fp);

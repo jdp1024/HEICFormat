@@ -8,7 +8,7 @@
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="HEIC_UI_Controller">
             <connections>
-                <outlet property="alphaMatrix" destination="22" id="yZL-9G-TeY"/>
+                <outlet property="saveTransparencyCheckbox" destination="save-transparency-checkbox" id="save-transparency-connection"/>
                 <outlet property="convertToSRGBCheckbox" destination="xwr-aA-Qe4" id="iof-89-iS8"/>
                 <outlet property="qualityEdit" destination="gE0-iz-v7K" id="UVA-UM-ldR"/>
                 <outlet property="quantizeSlider" destination="44" id="uoz-Gq-6og"/>
@@ -31,39 +31,14 @@
                 <rect key="frame" x="0.0" y="0.0" width="366" height="472"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <box autoresizesSubviews="NO" fixedFrame="YES" borderType="line" title="Alpha Channel" translatesAutoresizingMaskIntoConstraints="NO" id="21">
-                        <rect key="frame" x="17" y="233" width="177" height="107"/>
+                    <button fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="save-transparency-checkbox">
+                        <rect key="frame" x="18" y="221" width="220" height="18"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                        <view key="contentView" id="X0x-cP-jS6">
-                            <rect key="frame" x="3" y="3" width="171" height="89"/>
-                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                            <subviews>
-                                <matrix verticalHuggingPriority="750" fixedFrame="YES" allowsEmptySelection="NO" translatesAutoresizingMaskIntoConstraints="NO" id="22">
-                                    <rect key="frame" x="20" y="19" width="150" height="50"/>
-                                    <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                    <size key="cellSize" width="150" height="24"/>
-                                    <size key="intercellSpacing" width="4" height="2"/>
-                                    <buttonCell key="prototype" type="radio" title="Radio" imagePosition="leading" alignment="left" controlSize="small" inset="2" id="25">
-                                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                        <font key="font" metaFont="smallSystem"/>
-                                    </buttonCell>
-                                    <cells>
-                                        <column>
-                                            <buttonCell type="radio" title="None" imagePosition="leading" alignment="left" controlSize="small" state="on" tag="1" inset="2" id="23">
-                                                <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                                <font key="font" metaFont="smallSystem"/>
-                                            </buttonCell>
-                                            <buttonCell type="radio" title="Transparency" imagePosition="leading" alignment="left" controlSize="small" inset="2" id="24">
-                                                <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                                <font key="font" metaFont="smallSystem"/>
-                                            </buttonCell>
-                                        </column>
-                                    </cells>
-                                </matrix>
-                            </subviews>
-                        </view>
-                    </box>
+                        <buttonCell key="cell" type="check" title="Save Transparency" bezelStyle="regularSquare" imagePosition="left" alignment="left" state="on" inset="2" id="save-transparency-cell">
+                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                            <font key="font" metaFont="smallSystem"/>
+                        </buttonCell>
+                    </button>
                     <box fixedFrame="YES" title="Quality" translatesAutoresizingMaskIntoConstraints="NO" id="S4r-29-RkC">
                         <rect key="frame" x="17" y="354" width="332" height="98"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>

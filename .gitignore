@@ -1,0 +1,43 @@
+# Build directories
+build/
+build-*/
+
+# Distribution packages
+heic-format-distribution/
+heic-format-v*/
+*.zip
+*.tar.gz
+
+# Xcode
+*.xcuserstate
+*.xcworkspace
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+
+# Compiled files
+*.o
+*.a
+*.dylib
+*.rsrc
+
+# Downloaded dependencies
+lcms2-*/
+
+# Logs
+*.log
+/tmp/heic.log
+
+# Temporary files
+COMMIT_MESSAGE.txt
+do_commit.sh
