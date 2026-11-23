@@ -252,11 +252,14 @@ endif()
 if(NOT USE_REZ AND EXISTS "${CMAKE_SOURCE_DIR}/common/PiPLs.json")
     # Newer Photoshop SDKs (2027+) use a JSON PiPL instead of Rez resources
     message(STATUS "Using PiPLs.json (no Rez resources)")
-    add_custom_command(TARGET HEICFormat POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/common/PiPLs.json"
+    # Separate always-run target so edits to PiPLs.json reach the bundle without a relink
+    add_custom_target(CopyPiPLs ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_BUNDLE_DIR:HEICFormat>/Contents/Resources
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/common/PiPLs.json"
                 $<TARGET_BUNDLE_DIR:HEICFormat>/Contents/Resources/PiPLs.json
         COMMENT "Copying PiPLs.json to bundle"
     )
+    add_dependencies(CopyPiPLs HEICFormat)
 elseif(USE_REZ)
     message(STATUS "Found Rez: ${REZ_COMMAND}")
     

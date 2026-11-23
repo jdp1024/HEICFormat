@@ -101,10 +101,11 @@ resource 'PiPL' (ResourceID, plugInName " PiPL", purgeable)
 							   24, 24, 24, 24, 24, 24 } },
 	
 		FmtFileType { 'HEIC', '8BIM' },
-        FilteredExtensions  { { 'heic' } },
+        FilteredExtensions  { { 'heic' }, { 'hif ' } },
+        ReadExtensions  { { 'heic' }, { 'hif ' } },
         WriteExtensions { { 'heic' } },
 		FormatFlags { fmtSavesImageResources, 
-		              fmtCannotRead,
+		              fmtCanRead,
 					  fmtCanWrite,
                       fmtCanWriteIfRead,
 					  fmtCanWriteTransparency, 

@@ -43,12 +43,13 @@
 				"Type":"HEIC",
 				"Creator":"8BIM"
 			},
-			"FilteredExtensions":["heic"],
+			"FilteredExtensions":["heic","hif "],
+			"ReadExtensions":["heic","hif "],
 			"WriteExtensions":["heic"],
 			"FormatFlags":
 			{
 				"SavesImageResources":true,
-				"CanRead":false,
+				"CanRead":true,
 				"CanWrite":true,
 				"CanWriteIfRead":true,
 				"CanWriteTransparency":true,
