@@ -1,0 +1,100 @@
+{
+	"PiPLs" :
+	[
+		{
+			"Kind":"Format",
+			"Name":"HEIC Format",
+			"Category":"HEIC",
+			"Priority":1,
+			"Version":1,
+			"SubVersion":0,
+			"ComponentVersionShortNum":27,
+			"ComponentVersionMinorRevNum":0,
+			"ComponentVersionDotRevNum":0,
+			"ComponentName":"HEIC Format",
+			"CodeMacARM64":"PluginMain",
+			"CodeMacIntel64":"PluginMain",
+			"CodeEntryPointWin64":"PluginMain",
+			"HasTerminology":
+			{
+				"ClassID":"texP",
+				"EventID":"null",
+				"ScopeString":"9E3AF9BA-CBDD-4b26-920C-5FE8A5C61B59"
+			},
+			"SupportedModes":
+			{
+				"Bitmap":false,
+				"GrayScale":false,
+				"IndexedColor":false,
+				"RGBColor":true,
+				"CMYKColor":false,
+				"HSLColor":false,
+				"HSBColor":false,
+				"Multichannel":false,
+				"Duotone":false,
+				"LABColor":false
+			},
+			"EnableInfo":"in (PSHOP_ImageMode, RGBMode, RGB48Mode, RGBColorMode) && PSHOP_ImageDepth == 8 || PSHOP_ImageDepth == 16",
+			"PlugInMaxSize":[2147483647,2147483647],
+			"FormatMaxSize":[32767,32767],
+			"FormatMaxChannels":[1, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24],
+			"FmtFileType":
+			{
+				"Type":"HEIC",
+				"Creator":"8BIM"
+			},
+			"FilteredExtensions":["heic"],
+			"WriteExtensions":["heic"],
+			"FormatFlags":
+			{
+				"SavesImageResources":true,
+				"CanRead":false,
+				"CanWrite":true,
+				"CanWriteIfRead":true,
+				"CanWriteTransparency":true,
+				"CanCreateThumbnail":false
+			},
+			"FormatICCFlags":
+			{
+				"CanEmbedGray":false,
+				"CanEmbedIndexed":false,
+				"CanEmbedRGB":true,
+				"CanEmbedCMYK":false
+			},
+			"Terminology":
+			{
+				"MajorVersion":1,
+				"MinorVersion":0,
+				"Language":0,
+				"ScriptCode":0,
+				"Suites":
+				[
+					{
+						"SuiteName":"jdp",
+						"SuiteDescription":"HEIC Format save plug-in",
+						"SuiteID":"sdK4",
+						"SuiteLevel":1,
+						"SuiteVersion":1,
+						"Classes":
+						[
+							{
+								"ClassName":"jdp HEIC Format",
+								"ClassType":"texP",
+								"ClassDescription":"HEIC file format import plug-in",
+								"Properties":
+								[
+									{
+										"PropertyName":"<Inheritance>",
+										"PropertyKey":"c@#^",
+										"PropertyType":"Fmt ",
+										"PropertyDescription":"parent class format"
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		}
+	]
+}
