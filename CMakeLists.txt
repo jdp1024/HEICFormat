@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
-project(HEICFormat VERSION 0.1.2 LANGUAGES C CXX OBJC OBJCXX)
+project(HEICFormat VERSION 0.2.0 LANGUAGES C CXX OBJC OBJCXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum macOS deployment version")
 
@@ -217,6 +217,13 @@ endif()
 if(LIBDE265_STATIC)
     target_link_libraries(HEICFormat PRIVATE ${LIBDE265_STATIC})
     message(STATUS "Linked static libde265: ${LIBDE265_STATIC}")
+else()
+    # Homebrew only ships libde265 as a dylib; fall back to it (local installs only)
+    find_library(LIBDE265_DYNAMIC NAMES de265 PATHS /opt/homebrew/opt/libde265/lib /usr/local/lib)
+    if(LIBDE265_DYNAMIC)
+        target_link_libraries(HEICFormat PRIVATE ${LIBDE265_DYNAMIC})
+        message(STATUS "Linked dynamic libde265: ${LIBDE265_DYNAMIC}")
+    endif()
 endif()
 if(AOM_STATIC)
     target_link_libraries(HEICFormat PRIVATE ${AOM_STATIC})
@@ -238,7 +245,22 @@ set_target_properties(HEICFormat PROPERTIES
 
 # Handle resource compilation (Rez)
 find_program(REZ_COMMAND Rez)
-if(REZ_COMMAND)
+if(EXISTS "${COMMON_SDK_PATH}/includes/MachOMacrezXcode.h" AND REZ_COMMAND)
+    set(USE_REZ TRUE)
+endif()
+
+if(NOT USE_REZ AND EXISTS "${CMAKE_SOURCE_DIR}/common/PiPLs.json")
+    # Newer Photoshop SDKs (2027+) use a JSON PiPL instead of Rez resources
+    message(STATUS "Using PiPLs.json (no Rez resources)")
+    # Separate always-run target so edits to PiPLs.json reach the bundle without a relink
+    add_custom_target(CopyPiPLs ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_BUNDLE_DIR:HEICFormat>/Contents/Resources
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/common/PiPLs.json"
+                $<TARGET_BUNDLE_DIR:HEICFormat>/Contents/Resources/PiPLs.json
+        COMMENT "Copying PiPLs.json to bundle"
+    )
+    add_dependencies(CopyPiPLs HEICFormat)
+elseif(USE_REZ)
     message(STATUS "Found Rez: ${REZ_COMMAND}")
     
     set(REZ_SOURCE "${CMAKE_SOURCE_DIR}/common/HEICFormat.r")

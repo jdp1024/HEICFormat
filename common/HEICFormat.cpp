@@ -17,6 +17,10 @@
 #include "HEIC_log.h"
 
 #include <libheif/heif.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <vector>
+#include <algorithm>
 #include <lcms2.h>
 #ifdef HAVE_LCMS2_FAST_FLOAT
 #include <lcms2_fast_float.h>
@@ -34,16 +38,6 @@ static int gcmsPluginAdded = 0;
 
 static char gSavedPath[256] = { 0 };
 
-#define PF_HALF_CHAN16            16384
-
-static inline unsigned16 RGB16ToRGB8(unsigned16 val) {
-    return (val > PF_HALF_CHAN16 ? ( (val - 1) << 1 ) + 1 : val << 1);
-}
-
-static inline unsigned16 ByteSwap(unsigned16 val) {
-    return ((val >> 8) | (val << 8));
-}
-
 inline const char* pastr(Str255 x) {
     return (const char*) &x[1];
 }
@@ -56,6 +50,11 @@ void DoWriteStart(FormatRecordPtr formatRecord);
 void DoWriteContinue(FormatRecordPtr formatRecord);
 void DoWriteFinish(FormatRecordPtr formatRecord);
 void DoWritePrepare(FormatRecordPtr formatRecord);
+void DoReadPrepare(FormatRecordPtr formatRecord);
+void DoReadStart(FormatRecordPtr formatRecord);
+void DoReadContinue(FormatRecordPtr formatRecord);
+void DoReadFinish(FormatRecordPtr formatRecord);
+void DoFilterFile(FormatRecordPtr formatRecord);
 
 DLLExport MACPASCAL void PluginMain (const int16 selector, FormatRecordPtr formatParamBlock, intptr_t * data, int16 * result) {
     if (!gcmsPluginAdded) {
@@ -82,6 +81,21 @@ DLLExport MACPASCAL void PluginMain (const int16 selector, FormatRecordPtr forma
             }
 
             switch (selector) {
+                case formatSelectorReadPrepare:
+                    DoReadPrepare(formatParamBlock);
+                    break;
+                case formatSelectorReadStart:
+                    DoReadStart(formatParamBlock);
+                    break;
+                case formatSelectorReadContinue:
+                    DoReadContinue(formatParamBlock);
+                    break;
+                case formatSelectorReadFinish:
+                    DoReadFinish(formatParamBlock);
+                    break;
+                case formatSelectorFilterFile:
+                    DoFilterFile(formatParamBlock);
+                    break;
                 case formatSelectorOptionsStart:
                     DoOptionsStart(formatParamBlock);
                     break;
@@ -108,8 +122,6 @@ DLLExport MACPASCAL void PluginMain (const int16 selector, FormatRecordPtr forma
             selector == formatSelectorFilterFile) {
             PIUSuitesRelease();
         }
-
-        *result = noErr;
 
     } catch (...) {
 		if (nullptr != result) {
@@ -202,6 +214,216 @@ void DoOptionsStart(FormatRecordPtr formatRecord) {
         // In quiet mode, store default options
         DataToHandle(opt, formatRecord->revertInfo);
     }
+}
+
+
+//-------------------------------------------------------------------------------
+// Reading (HIF/HEIF/HEIC files opened through this plug-in)
+//-------------------------------------------------------------------------------
+
+static heif_image* gReadImage = nullptr;
+static int gReadBitDepth = 8;      // bit depth of the decoded samples
+static bool gReadHdr = false;      // true: deliver 16-bit (0..0x8000) samples
+static int gReadPlanes = 3;
+
+static void CleanupRead() {
+    if (gReadImage) {
+        heif_image_release(gReadImage);
+        gReadImage = nullptr;
+    }
+}
+
+// Reads the whole data fork into memory (requires POSIX IO, which every current host provides).
+static bool ReadEntireFile(FormatRecordPtr fr, std::vector<uint8_t>& out) {
+    if (!fr->pluginUsingPOSIXIO) return false;
+
+    struct stat st;
+    if (fstat(fr->posixFileDescriptor, &st) != 0 || st.st_size <= 0 || st.st_size > 0x7FFFFFFF) return false;
+
+    out.resize((size_t)st.st_size);
+    if (PSSDKSetFPos((int32)fr->dataFork, fr->posixFileDescriptor, fr->pluginUsingPOSIXIO, fsFromStart, 0) != noErr) return false;
+
+    size_t done = 0;
+    while (done < out.size()) {
+        int32 n = (int32)std::min<size_t>(out.size() - done, 1 << 24);
+        if (PSSDKRead((int32)fr->dataFork, fr->posixFileDescriptor, fr->pluginUsingPOSIXIO, &n, out.data() + done) != noErr || n <= 0) return false;
+        done += (size_t)n;
+    }
+    return true;
+}
+
+void DoReadPrepare(FormatRecordPtr formatRecord) {
+    formatRecord->maxData = 0;
+}
+
+void DoFilterFile(FormatRecordPtr formatRecord) {
+    if (*gResult != noErr) return;
+
+    uint8_t header[32] = { 0 };
+    int32 n = sizeof(header);
+    *gResult = PSSDKSetFPos((int32)formatRecord->dataFork, formatRecord->posixFileDescriptor, formatRecord->pluginUsingPOSIXIO, fsFromStart, 0);
+    if (*gResult != noErr) return;
+    *gResult = PSSDKRead((int32)formatRecord->dataFork, formatRecord->posixFileDescriptor, formatRecord->pluginUsingPOSIXIO, &n, header);
+    if (*gResult != noErr) {
+        *gResult = formatCannotRead;
+        return;
+    }
+
+    heif_filetype_result type = heif_check_filetype(header, sizeof(header));
+    if (type != heif_filetype_yes_supported && type != heif_filetype_maybe) {
+        *gResult = formatCannotRead;
+    }
+}
+
+void DoReadStart(FormatRecordPtr formatRecord) {
+    CleanupRead();
+
+    if (*gResult != noErr) return;
+
+    std::vector<uint8_t> file;
+    if (!ReadEntireFile(formatRecord, file)) {
+        *gResult = readErr;
+        return;
+    }
+
+    heif_context* ctx = heif_context_alloc();
+    heif_image_handle* handle = nullptr;
+    heif_error err = heif_context_read_from_memory(ctx, file.data(), file.size(), nullptr);
+    if (err.code == heif_error_Ok) err = heif_context_get_primary_image_handle(ctx, &handle);
+    if (err.code != heif_error_Ok || !handle) {
+        xlog("HEIC read: cannot parse file: %s\n", err.message ? err.message : "?");
+        heif_context_free(ctx);
+        *gResult = formatCannotRead;
+        return;
+    }
+
+    const bool has_alpha = heif_image_handle_has_alpha_channel(handle) != 0;
+    gReadHdr = heif_image_handle_get_luma_bits_per_pixel(handle) > 8;
+    gReadPlanes = has_alpha ? 4 : 3;
+
+    heif_chroma chroma;
+    if (gReadHdr) chroma = has_alpha ? heif_chroma_interleaved_RRGGBBAA_LE : heif_chroma_interleaved_RRGGBB_LE;
+    else          chroma = has_alpha ? heif_chroma_interleaved_RGBA : heif_chroma_interleaved_RGB;
+
+    err = heif_decode_image(handle, &gReadImage, heif_colorspace_RGB, chroma, nullptr);
+    if (err.code != heif_error_Ok || !gReadImage) {
+        xlog("HEIC read: decode failed: %s\n", err.message ? err.message : "?");
+        gReadImage = nullptr;
+        heif_image_handle_release(handle);
+        heif_context_free(ctx);
+        *gResult = formatCannotRead;
+        return;
+    }
+    gReadBitDepth = std::max(8, heif_image_get_bits_per_pixel_range(gReadImage, heif_channel_interleaved));
+
+    const int width = heif_image_get_primary_width(gReadImage);
+    const int height = heif_image_get_primary_height(gReadImage);
+
+    formatRecord->imageMode = plugInModeRGBColor;
+    if (formatRecord->HostSupports32BitCoordinates && formatRecord->PluginUsing32BitCoordinates) {
+        formatRecord->imageSize32.h = width;
+        formatRecord->imageSize32.v = height;
+    } else {
+        formatRecord->imageSize.h = (int16)width;
+        formatRecord->imageSize.v = (int16)height;
+    }
+    formatRecord->depth = gReadHdr ? 16 : 8;
+    formatRecord->planes = gReadPlanes;
+    formatRecord->transparencyPlane = has_alpha ? 3 : 0;
+    formatRecord->transparencyMatting = 0;
+
+    // Embedded ICC profile
+    formatRecord->iCCprofileData = nullptr;
+    formatRecord->iCCprofileSize = 0;
+    if (formatRecord->canUseICCProfiles) {
+        uint32_t profile_type = heif_image_handle_get_color_profile_type(handle);
+        if (profile_type == heif_color_profile_type_prof || profile_type == heif_color_profile_type_rICC) {
+            size_t size = heif_image_handle_get_raw_color_profile_size(handle);
+            if (size > 127 && size < 0x7FFFFFFF) {
+                Handle h = sPSHandle->New((int32)size);
+                if (h) {
+                    Boolean oldLock = FALSE;
+                    Ptr p = nullptr;
+                    sPSHandle->SetLock(h, true, &p, &oldLock);
+                    if (p && heif_image_handle_get_raw_color_profile(handle, p).code == heif_error_Ok) {
+                        sPSHandle->SetLock(h, false, &p, &oldLock);
+                        formatRecord->iCCprofileData = h;
+                        formatRecord->iCCprofileSize = (int32)size;
+                    } else {
+                        if (p) sPSHandle->SetLock(h, false, &p, &oldLock);
+                        sPSHandle->Dispose(h);
+                    }
+                }
+            }
+        }
+    }
+
+    heif_image_handle_release(handle);
+    heif_context_free(ctx);
+}
+
+void DoReadContinue(FormatRecordPtr formatRecord) {
+    if (*gResult != noErr || !gReadImage) return;
+
+    const int width = heif_image_get_primary_width(gReadImage);
+    const int height = heif_image_get_primary_height(gReadImage);
+    const int bytes_per_sample = gReadHdr ? 2 : 1;
+    const int row_bytes = width * gReadPlanes * bytes_per_sample;
+
+    int stride = 0;
+    const uint8_t* src = heif_image_get_plane_readonly(gReadImage, heif_channel_interleaved, &stride);
+    if (!src) {
+        *gResult = readErr;
+        return;
+    }
+
+    BufferID bufferID = 0;
+    myAllocateBuffer(formatRecord, row_bytes, &bufferID);
+    Ptr buffer = bufferID ? myLockBuffer(formatRecord, bufferID, TRUE) : nullptr;
+    if (!buffer) {
+        *gResult = memFullErr;
+        return;
+    }
+
+    formatRecord->loPlane = 0;
+    formatRecord->hiPlane = gReadPlanes - 1;
+    formatRecord->colBytes = gReadPlanes * bytes_per_sample;
+    formatRecord->rowBytes = row_bytes;
+    formatRecord->planeBytes = bytes_per_sample;
+    formatRecord->data = buffer;
+    if (gReadHdr) formatRecord->maxValue = 0x8000;  // Photoshop's 16-bit range
+
+    const uint32_t src_max = (1u << gReadBitDepth) - 1;
+    formatRecord->theRect.left = formatRecord->theRect32.left = 0;
+    formatRecord->theRect.right = formatRecord->theRect32.right = width;
+
+    for (int y = 0; y < height && *gResult == noErr; ++y) {
+        const uint8_t* row = src + (size_t)y * stride;
+        if (gReadHdr) {
+            const uint16_t* in = (const uint16_t*)row;
+            uint16_t* out = (uint16_t*)buffer;
+            const size_t count = (size_t)width * gReadPlanes;
+            for (size_t i = 0; i < count; ++i) {
+                uint32_t v = std::min<uint32_t>(in[i], src_max);
+                out[i] = (uint16_t)((v * 32768u + src_max / 2) / src_max);
+            }
+        } else {
+            memcpy(buffer, row, row_bytes);
+        }
+
+        formatRecord->theRect.top = formatRecord->theRect32.top = y;
+        formatRecord->theRect.bottom = formatRecord->theRect32.bottom = y + 1;
+        *gResult = formatRecord->advanceState();
+        formatRecord->progressProc(y + 1, height);
+    }
+
+    formatRecord->data = nullptr;
+    myUnlockBuffer(formatRecord, bufferID);
+    myFreeBuffer(formatRecord, bufferID);
+}
+
+void DoReadFinish(FormatRecordPtr formatRecord) {
+    CleanupRead();
 }
 
 void DoWritePrepare(FormatRecordPtr formatRecord) {
@@ -414,12 +636,17 @@ void DoWriteStart(FormatRecordPtr formatRecord) {
         // - save_alpha true: planes=4, formatRecord->data contains RGBA
         // - save_alpha false: planes=3, formatRecord->data contains RGB
         if (formatRecord->depth == 16) {
-            unsigned16* src = (unsigned16*)formatRecord->data;
-            unsigned16* dest = (unsigned16*)(plane + y * stride);
+            // The HEIF plane is 8-bit, so downconvert while copying. Photoshop's 16-bit
+            // range is 0..32768; scale to 0..255 with rounding.
+            const unsigned16* src = (const unsigned16*)formatRecord->data;
+            unsigned8* dest = plane + (size_t)y * stride;
+            const size_t samples_per_row = (size_t)width * num_channels;
             for (int row = 0; row < block_height; ++row) {
-                memcpy(dest, src, formatRecord->rowBytes);
-                src += formatRecord->rowBytes / 2;  // Advance by pixels, not bytes
-                dest += stride / 2;  // HEIF stride in pixels for 16-bit
+                for (size_t i = 0; i < samples_per_row; ++i) {
+                    dest[i] = (unsigned8)(((unsigned32)src[i] * 255u + 16384u) >> 15);
+                }
+                src += samples_per_row;
+                dest += stride;
             }
         } else {
             unsigned8* src = (unsigned8*)formatRecord->data;
@@ -436,23 +663,6 @@ void DoWriteStart(FormatRecordPtr formatRecord) {
 
     formatRecord->progressProc(3, 10);
 
-    // Apply 16-bit to 8-bit conversion if needed
-    if (formatRecord->depth == 16 && save_alpha) {
-        // For RGBA 16-bit, convert in-place
-        unsigned16* pix = (unsigned16*)plane;
-        size_t total_pixels = (size_t)width * (size_t)height * 4;  // RGBA
-        for (size_t i = 0; i < total_pixels; ++i) {
-            pix[i] = ByteSwap(RGB16ToRGB8(pix[i]));
-        }
-    } else if (formatRecord->depth == 16 && !save_alpha) {
-        // For RGB 16-bit, convert in-place
-        unsigned16* pix = (unsigned16*)plane;
-        size_t total_pixels = (size_t)width * (size_t)height * 3;  // RGB
-        for (size_t i = 0; i < total_pixels; ++i) {
-            pix[i] = ByteSwap(RGB16ToRGB8(pix[i]));
-        }
-    }
-    // For 8-bit, data is already in correct format from direct copy above
 
     if (opt.convertToSRGB && formatRecord->canUseICCProfiles && formatRecord->iCCprofileData && formatRecord->iCCprofileSize > 0) {
         cmsHPROFILE profileSrc = cmsOpenProfileFromMem(clr_profile_data, clr_profile_size);

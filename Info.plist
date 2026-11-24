@@ -7,11 +7,11 @@
 	<key>CFBundleExecutable</key>
 	<string>HEICFormat</string>
 	<key>CFBundleGetInfoString</key>
-	<string>0.1.2 © 2021-2025 jdp. All rights reserved.</string>
+	<string>0.2.0 © 2021-2025 jdp. All rights reserved.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2021-2025 jdp. All rights reserved.</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.2</string>
+	<string>0.2.0</string>
 	<key>CFBundleName</key>
 	<string>HEICFormat</string>
 	<key>CFBundlePackageType</key>

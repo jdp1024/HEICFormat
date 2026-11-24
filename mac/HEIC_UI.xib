@@ -89,7 +89,7 @@
                             <font key="font" metaFont="smallSystem"/>
                             <string key="title">* = see the readme file.
 
-HEIC Format Photoshop Plugin Version 0.01 by jdp. Distributed under GPL3 (see readme file).</string>
+HEIC Format Photoshop Plugin Version 0.2.0 by jdp. Distributed under GPL3 (see readme file).</string>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="selectedControlColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>

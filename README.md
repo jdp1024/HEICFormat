@@ -1,6 +1,6 @@
 # HEIC Format Plug-in for Adobe Photoshop
 
-**Version 0.1.2**
+**Version 0.2.0)**
 
 A professional-grade plug-in for Adobe Photoshop that adds support for saving documents in HEIC format with automatic transparency detection and color management.
 
