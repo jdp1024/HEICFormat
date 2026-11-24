@@ -38,16 +38,6 @@ static int gcmsPluginAdded = 0;
 
 static char gSavedPath[256] = { 0 };
 
-#define PF_HALF_CHAN16            16384
-
-static inline unsigned16 RGB16ToRGB8(unsigned16 val) {
-    return (val > PF_HALF_CHAN16 ? ( (val - 1) << 1 ) + 1 : val << 1);
-}
-
-static inline unsigned16 ByteSwap(unsigned16 val) {
-    return ((val >> 8) | (val << 8));
-}
-
 inline const char* pastr(Str255 x) {
     return (const char*) &x[1];
 }
@@ -646,12 +636,17 @@ void DoWriteStart(FormatRecordPtr formatRecord) {
         // - save_alpha true: planes=4, formatRecord->data contains RGBA
         // - save_alpha false: planes=3, formatRecord->data contains RGB
         if (formatRecord->depth == 16) {
-            unsigned16* src = (unsigned16*)formatRecord->data;
-            unsigned16* dest = (unsigned16*)(plane + y * stride);
+            // The HEIF plane is 8-bit, so downconvert while copying. Photoshop's 16-bit
+            // range is 0..32768; scale to 0..255 with rounding.
+            const unsigned16* src = (const unsigned16*)formatRecord->data;
+            unsigned8* dest = plane + (size_t)y * stride;
+            const size_t samples_per_row = (size_t)width * num_channels;
             for (int row = 0; row < block_height; ++row) {
-                memcpy(dest, src, formatRecord->rowBytes);
-                src += formatRecord->rowBytes / 2;  // Advance by pixels, not bytes
-                dest += stride / 2;  // HEIF stride in pixels for 16-bit
+                for (size_t i = 0; i < samples_per_row; ++i) {
+                    dest[i] = (unsigned8)(((unsigned32)src[i] * 255u + 16384u) >> 15);
+                }
+                src += samples_per_row;
+                dest += stride;
             }
         } else {
             unsigned8* src = (unsigned8*)formatRecord->data;
@@ -668,23 +663,6 @@ void DoWriteStart(FormatRecordPtr formatRecord) {
 
     formatRecord->progressProc(3, 10);
 
-    // Apply 16-bit to 8-bit conversion if needed
-    if (formatRecord->depth == 16 && save_alpha) {
-        // For RGBA 16-bit, convert in-place
-        unsigned16* pix = (unsigned16*)plane;
-        size_t total_pixels = (size_t)width * (size_t)height * 4;  // RGBA
-        for (size_t i = 0; i < total_pixels; ++i) {
-            pix[i] = ByteSwap(RGB16ToRGB8(pix[i]));
-        }
-    } else if (formatRecord->depth == 16 && !save_alpha) {
-        // For RGB 16-bit, convert in-place
-        unsigned16* pix = (unsigned16*)plane;
-        size_t total_pixels = (size_t)width * (size_t)height * 3;  // RGB
-        for (size_t i = 0; i < total_pixels; ++i) {
-            pix[i] = ByteSwap(RGB16ToRGB8(pix[i]));
-        }
-    }
-    // For 8-bit, data is already in correct format from direct copy above
 
     if (opt.convertToSRGB && formatRecord->canUseICCProfiles && formatRecord->iCCprofileData && formatRecord->iCCprofileSize > 0) {
         cmsHPROFILE profileSrc = cmsOpenProfileFromMem(clr_profile_data, clr_profile_size);

@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.2.0 - November 23, 2026
+
+- **Updated for newer SDK** - Adobe SDK no longer uses the .r file
+- **Added support for reading HIF files** Fujifilm HIF files now open
+- **Fixed 16 bit/channel export** - saving 16 bit/channel color documents crashed photoshop
+- **Updated version string in UI and resources** version 0.2.0 now shows in UI and documentation
+
 ## Version 0.1.2 - December 3, 2025
 
 ### Transparency Compositing Fix
